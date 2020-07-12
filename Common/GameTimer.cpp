@@ -10,6 +10,7 @@ GameTimer::GameTimer()
   mPausedTime(0), mPrevTime(0), mCurrTime(0), mStopped(false)
 {
 	__int64 countsPerSec;
+	// QueryPerformanceFrequency : 초딩 틱수를 반환한다.
 	QueryPerformanceFrequency((LARGE_INTEGER*)&countsPerSec);
 	mSecondsPerCount = 1.0 / (double)countsPerSec;
 }
