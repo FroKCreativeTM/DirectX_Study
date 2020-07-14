@@ -35,6 +35,7 @@ ComPtr<ID3DBlob> d3dUtil::LoadBinary(const std::wstring& filename)
     return blob;
 }
 
+/* 다양한 버퍼를 만들기 위한 기본 버퍼 생성 */
 Microsoft::WRL::ComPtr<ID3D12Resource> d3dUtil::CreateDefaultBuffer(
     ID3D12Device* device,
     ID3D12GraphicsCommandList* cmdList,
@@ -42,9 +43,10 @@ Microsoft::WRL::ComPtr<ID3D12Resource> d3dUtil::CreateDefaultBuffer(
     UINT64 byteSize,
     Microsoft::WRL::ComPtr<ID3D12Resource>& uploadBuffer)
 {
+    // 기본 버퍼 하나를 생성한다.
     ComPtr<ID3D12Resource> defaultBuffer;
 
-    // Create the actual default buffer resource.
+    // 실제 기본 버퍼 자원을 생성
     ThrowIfFailed(device->CreateCommittedResource(
         &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
         D3D12_HEAP_FLAG_NONE,
