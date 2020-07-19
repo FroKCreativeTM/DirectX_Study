@@ -1,6 +1,5 @@
 #include "MyD3DBoxApp.h"
 
-
 int WINAPI WinMain(HINSTANCE hInstance,
 	HINSTANCE hPrevInstance,
 	PSTR strCmdLine,
@@ -13,7 +12,7 @@ int WINAPI WinMain(HINSTANCE hInstance,
 	try
 	{
 		MyD3DBoxApp app(hInstance);
-		if (app.Initialize())
+		if (!app.Initialize())
 			return 0;
 
 		return app.Run();
@@ -23,19 +22,4 @@ int WINAPI WinMain(HINSTANCE hInstance,
 		MessageBox(nullptr, err.ToString().c_str(), L"app init error", MB_OK);
 		return 0;
 	}
-}
-
-void MyD3DApp::OnResize()
-
-void MyD3DApp::Update(const GameTimer& gt) 
-
-
-void MyD3DApp::Draw(const GameTimer& gt)
-{
-	
-}
-
-bool MyD3DApp::Initialize()
-{
-	
 }

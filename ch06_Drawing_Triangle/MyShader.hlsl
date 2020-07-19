@@ -1,17 +1,17 @@
-cBuffer cbPerObject : register(b0)
+cbuffer cbPerObject : register(b0)
 {
 	float4x4 gWorldViewProj;
 };
 
 struct VertexIn
 {
-	float3 PosL : POSITION;
+	float3 PosL  : POSITION;
 	float4 Color : COLOR;
 };
 
 struct VertexOut
 {
-	float4 PosH : SV_POSITION;
+	float4 PosH  : SV_POSITION;
 	float4 Color : COLOR;
 };
 
@@ -30,7 +30,7 @@ VertexOut vs_main(VertexIn vin)
 	return vout;
 }
 
-void ps_main(VertexOut pin) : SV_Tatget
+float4 ps_main(VertexOut pin) : SV_Target
 {
 	// 각 픽셀마다 색 반환
 	return pin.Color;
