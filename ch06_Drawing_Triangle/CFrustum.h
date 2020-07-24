@@ -6,7 +6,6 @@
 
 using Microsoft::WRL::ComPtr;
 using namespace DirectX;
-// using namespace DirectX::PackedVector;
 
 struct Vertex
 {
@@ -17,10 +16,9 @@ struct Vertex
 struct ObjectConstants
 {
 	XMFLOAT4X4 WorldViewProj = MathHelper::Identity4x4();
-	float gTime = 0.0f;
 };
 
-class MyD3DBoxApp : public D3DApp
+class CFrustum : public D3DApp
 {
 private:
 	ComPtr<ID3D12RootSignature> mRootSignature = nullptr;
@@ -28,8 +26,7 @@ private:
 
 	std::unique_ptr<UploadBuffer<ObjectConstants>> mObjectCB = nullptr;
 
-	std::unique_ptr<MeshGeometry> mPyramid = nullptr;
-	std::unique_ptr<MeshGeometry> mBoxGeo = nullptr;
+	std::unique_ptr<MeshGeometry> mFrustum = nullptr;
 
 	ComPtr<ID3DBlob> mvsByteCode = nullptr;
 	ComPtr<ID3DBlob> mpsByteCode = nullptr;
@@ -64,17 +61,17 @@ private:
 	void BuildConstantBuffers();
 	void BuildRootSignature();
 	void BuildShadersAndInputLayout();
-	void BuildBoxGeometry();
+	void BuildFrustumGeometry();
 	void BuildPSO();
 
-private : 
+private:
 	// 쓸모없는 생성자들
-	MyD3DBoxApp(const MyD3DBoxApp& rhs) = delete;
-	MyD3DBoxApp& operator=(const MyD3DBoxApp& rhs) = delete;
+	CFrustum(const CFrustum& rhs) = delete;
+	CFrustum& operator=(const CFrustum& rhs) = delete;
 
 public:
-	MyD3DBoxApp(HINSTANCE hInstance);
-	~MyD3DBoxApp();
+	CFrustum(HINSTANCE hInstance);
+	~CFrustum();
 
 public:
 	virtual bool Initialize() override;

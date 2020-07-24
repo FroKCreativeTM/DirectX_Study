@@ -1,6 +1,6 @@
-#include "MyD3DBoxApp.h"
+#include "CFrustum.h"
 
-void MyD3DBoxApp::OnResize()
+void CFrustum::OnResize()
 {
 	D3DApp::OnResize();
 
@@ -10,7 +10,7 @@ void MyD3DBoxApp::OnResize()
 }
 
 // 마우스 입력이 있으면 좌표계가 갱신되게 해보자.
-void MyD3DBoxApp::Update(const GameTimer& gt)
+void CFrustum::Update(const GameTimer& gt)
 {
 	// 구면 좌표를 데카르트 좌표로 변환하자
 	float x = mRadius * sinf(mPhi) * cosf(mTheta);
@@ -34,11 +34,10 @@ void MyD3DBoxApp::Update(const GameTimer& gt)
 	// 최신의 MVP 행렬로 상수 버퍼를 갱신한다.
 	ObjectConstants objConstants;
 	XMStoreFloat4x4(&objConstants.WorldViewProj, XMMatrixTranspose(WVP));
-	objConstants.gTime = gt.TotalTime();
 	mObjectCB->CopyData(0, objConstants);
 }
 
-void MyD3DBoxApp::Draw(const GameTimer& gt)
+void CFrustum::Draw(const GameTimer& gt)
 {
 	// 명령 기록에 관련된 메모리의 재활용을 위해 명령 할당자를 재설정한다.
 	// 재설정은 GPU가 관련 명령 목록들을 모두 처리한 뒤에 일어난다.
@@ -94,13 +93,13 @@ void MyD3DBoxApp::Draw(const GameTimer& gt)
 
 	// 서술자 테이블을 파이프라인에 묶는다.
 	mCommandList->SetGraphicsRootSignature(mRootSignature.Get());
-	
+
 	// 이번 그리기 호출에 사용할 CBV의 오프셋이다.
 	CD3DX12_GPU_DESCRIPTOR_HANDLE cbv(mCbvHeap->GetGPUDescriptorHandleForHeapStart());
 
 	// 박스 오브젝트의 기하 보조 구조체의 버퍼를 설정한다.
-	mCommandList->IASetVertexBuffers(0, 1, &mBoxGeo->VertexBufferView());
-	mCommandList->IASetIndexBuffer(&mBoxGeo->IndexBufferView());
+	mCommandList->IASetVertexBuffers(0, 1, &mFrustum->VertexBufferView());
+	mCommandList->IASetIndexBuffer(&mFrustum->IndexBufferView());
 	mCommandList->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	// 그래픽스 루트 서술자 테이블을 설정한다.
@@ -108,7 +107,7 @@ void MyD3DBoxApp::Draw(const GameTimer& gt)
 
 	// 인덱스 카운트만큼 그린다.
 	mCommandList->DrawIndexedInstanced(
-		mBoxGeo->DrawArgs["box"].IndexCount,
+		mFrustum->DrawArgs["Frustum"].IndexCount,
 		1, 0, 0, 0);
 
 	// 자원 용도에 관련된 상태 전이를 Direct3D에 알린다.
@@ -134,7 +133,7 @@ void MyD3DBoxApp::Draw(const GameTimer& gt)
 	FlushCommandQueue();
 }
 
-void MyD3DBoxApp::OnMouseDown(WPARAM btnState, int x, int y)
+void CFrustum::OnMouseDown(WPARAM btnState, int x, int y)
 {
 	mLastMousePos.x = x;
 	mLastMousePos.y = y;
@@ -142,13 +141,13 @@ void MyD3DBoxApp::OnMouseDown(WPARAM btnState, int x, int y)
 	SetCapture(mhMainWnd);
 }
 
-void MyD3DBoxApp::OnMouseUp(WPARAM btnState, int x, int y)
+void CFrustum::OnMouseUp(WPARAM btnState, int x, int y)
 {
 	ReleaseCapture();
 }
 
 // 마우스 움직임에 따라서 물체가 변하게 만든다. 
-void MyD3DBoxApp::OnMouseMove(WPARAM btnState, int x, int y)
+void CFrustum::OnMouseMove(WPARAM btnState, int x, int y)
 {
 	// 만약 왼쪽 마우스 버튼이 아니라면
 	if ((btnState & MK_LBUTTON) != 0)
@@ -183,7 +182,7 @@ void MyD3DBoxApp::OnMouseMove(WPARAM btnState, int x, int y)
 	mLastMousePos.y = y;
 }
 
-void MyD3DBoxApp::BuildDescriptorHeaps()
+void CFrustum::BuildDescriptorHeaps()
 {
 	D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesk;	// 상수 버퍼 서술자 생성
 	cbvHeapDesk.NumDescriptors = 1;
@@ -197,7 +196,7 @@ void MyD3DBoxApp::BuildDescriptorHeaps()
 	ThrowIfFailed(md3dDevice->CreateDescriptorHeap(&cbvHeapDesk, IID_PPV_ARGS(&mCbvHeap)));
 }
 
-void MyD3DBoxApp::BuildConstantBuffers()
+void CFrustum::BuildConstantBuffers()
 {
 	// 물체 n개의 상수 자료를 담을 상수 버퍼 (여기서는 1개만 담도록 하겠다.)
 	mObjectCB = std::make_unique<UploadBuffer<ObjectConstants>>(md3dDevice.Get(), 1, true);
@@ -211,8 +210,8 @@ void MyD3DBoxApp::BuildConstantBuffers()
 	D3D12_GPU_VIRTUAL_ADDRESS cbAddress = mObjectCB->Resource()->GetGPUVirtualAddress();
 
 	// 버퍼에 담긴 i번째 상수 버퍼의 오프셋 (여기서는 0)
-	int boxCBufIndex = 0;
-	cbAddress += boxCBufIndex * objCBByteSize;
+	int FrustumCBufIndex = 0;
+	cbAddress += FrustumCBufIndex * objCBByteSize;
 
 	// 상수 버퍼 뷰 서술자를 생성한다.
 	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc;
@@ -224,12 +223,12 @@ void MyD3DBoxApp::BuildConstantBuffers()
 }
 
 // 루트 서명과 서술자 테이블을 생성한다.
-void MyD3DBoxApp::BuildRootSignature()
+void CFrustum::BuildRootSignature()
 {
 	// 루트 서명은 그리기 호출 전에 응용 프로그램이 반드시 렌더링 파이프라인에 묶어야 할 자원이 무엇이고
 	// 그 자원들이 어떤 셰이더 입력 레지스터들에 어떻게 대응되는지 정의하는 것이다.
 	// 즉 반드시 그리기 호출에 쓰이는 셰이더들과 호환되어야 한다.
-	
+
 	// 이 루트 서명에는 다양한 매개변수가 들어가지만, 여기서는 일단 서술자 테이블이라는
 	// 서술자 힙 안에 있는 연속된 서술자들의 구간을 지정하는 것으로 실습하겠다.
 	CD3DX12_ROOT_PARAMETER slotRootParameter[1];
@@ -274,7 +273,7 @@ void MyD3DBoxApp::BuildRootSignature()
 }
 
 // 셰이더를 컴파일하고 빌드한 뒤 레이아웃에 어떻게 입력을 줄 것인가에 대한 메서드이다.
-void MyD3DBoxApp::BuildShadersAndInputLayout()
+void CFrustum::BuildShadersAndInputLayout()
 {
 	// 일단 결과를 OK로 초기화한다.
 	HRESULT hr = S_OK;
@@ -291,87 +290,61 @@ void MyD3DBoxApp::BuildShadersAndInputLayout()
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 		{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
 	};
-
-	// mInputLayout =
-	// {
-	// 	{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-	// 	{ "COLOR", 0, DXGI_FORMAT_B8G8R8A8_UNORM, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
-	// };
 }
 
-void MyD3DBoxApp::BuildBoxGeometry()
+void CFrustum::BuildFrustumGeometry()
 {
 	// 미리 지정된 정점들의 집합
-	std::array<Vertex, 8> vertices =
+	std::array<Vertex, 5> vertices =
 	{
-		Vertex({ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT4(Colors::White) }),
-		Vertex({ XMFLOAT3(-1.0f, +1.0f, -1.0f), XMFLOAT4(Colors::Black) }),
-		Vertex({ XMFLOAT3(+1.0f, +1.0f, -1.0f), XMFLOAT4(Colors::Red) }),
+		Vertex({ XMFLOAT3(+1.0f, -1.0f, +1.0f), XMFLOAT4(Colors::White) }),
 		Vertex({ XMFLOAT3(+1.0f, -1.0f, -1.0f), XMFLOAT4(Colors::Green) }),
 		Vertex({ XMFLOAT3(-1.0f, -1.0f, +1.0f), XMFLOAT4(Colors::Blue) }),
-		Vertex({ XMFLOAT3(-1.0f, +1.0f, +1.0f), XMFLOAT4(Colors::Yellow) }),
-		Vertex({ XMFLOAT3(+1.0f, +1.0f, +1.0f), XMFLOAT4(Colors::Cyan) }),
-		Vertex({ XMFLOAT3(+1.0f, -1.0f, +1.0f), XMFLOAT4(Colors::Magenta) })
+		Vertex({ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT4(Colors::LightGoldenrodYellow) }),
+		Vertex({ XMFLOAT3(+0.0f, +1.0f, +0.0f), XMFLOAT4(Colors::Red) })
 	};
 
 	// 인덱스 배열을 생성한다.
-	std::array<std::uint16_t, 36> indices =
+	std::array<std::uint16_t, 18> indices =
 	{
-		// 앞 면
-		0, 1, 2,
-		0, 2, 3,
-
-		// 뒷 면
-		4, 6, 5,
-		4, 7, 6,
-
-		// 왼쪽 면
-		4, 5, 1,
-		4, 1, 0,
-
-		// 오른쪽 면
-		3, 2, 6,
-		3, 6, 7,
-
-		// 윗 면
-		1, 5, 6,
-		1, 6, 2,
-
-		// 아랫 면
-		4, 0, 3,
-		4, 3, 7
+		0, 2, 1,
+		1, 2, 3,
+		4, 0, 1,
+		4, 1, 3,
+		4, 3, 2,
+		4, 2, 0
 	};
 
 	const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
 	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
 
 	// 기하 구조체를 생성한다.
-	mBoxGeo = std::make_unique<MeshGeometry>();
-	mBoxGeo->Name = "boxGeo";
+	mFrustum = std::make_unique<MeshGeometry>();
+	mFrustum->Name = "FrustumGeo";
 
 	// 블로브(This interface is used to return data of arbitrary length, MSDN)를 생성한다. 
 	// 즉 vbByteSize 단위로 VertexBufferCPU에 데이터가 보내진다.
-	ThrowIfFailed(D3DCreateBlob(vbByteSize, &mBoxGeo->VertexBufferCPU));
-	CopyMemory(mBoxGeo->VertexBufferCPU->GetBufferPointer(), vertices.data(), vbByteSize);
+	ThrowIfFailed(D3DCreateBlob(vbByteSize, &mFrustum->VertexBufferCPU));
+	CopyMemory(mFrustum->VertexBufferCPU->GetBufferPointer(), vertices.data(), vbByteSize);
 
 	// 즉 ibByteSize 단위로 IndexBufferCPU에 데이터가 보내진다.
-	ThrowIfFailed(D3DCreateBlob(ibByteSize, &mBoxGeo->IndexBufferCPU));
-	CopyMemory(mBoxGeo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
+	ThrowIfFailed(D3DCreateBlob(ibByteSize, &mFrustum->IndexBufferCPU));
+	CopyMemory(mFrustum->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
 
 	// 정점 버퍼를 생성한다.
-	mBoxGeo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
-		mCommandList.Get(), vertices.data(), vbByteSize, mBoxGeo->VertexBufferUploader);
+	mFrustum->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
+		mCommandList.Get(), vertices.data(), vbByteSize, mFrustum->VertexBufferUploader);
 
 	// 색인 버퍼를 생성한다.
-	mBoxGeo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
-		mCommandList.Get(), indices.data(), ibByteSize, mBoxGeo->IndexBufferUploader);
+	mFrustum->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
+		mCommandList.Get(), indices.data(), ibByteSize, mFrustum->IndexBufferUploader);
 
 	// 기하 정점 정보를 체운다.
-	mBoxGeo->VertexByteStride = sizeof(Vertex);		// 보폭을 설정한다.
-	mBoxGeo->VertexBufferByteSize = vbByteSize;		// 정점 버퍼 바이트의 사이즈를 넣어준다.
+	mFrustum->VertexByteStride = sizeof(Vertex);		// 보폭을 설정한다.
+	mFrustum->VertexBufferByteSize = vbByteSize;		// 정점 버퍼 바이트의 사이즈를 넣어준다.
 	// 기하 색인 정보를 체운다.
-	mBoxGeo->IndexFormat = DXGI_FORMAT_R16_UINT;	// 색인 포맷을 결정한다.
-	mBoxGeo->IndexBufferByteSize = ibByteSize;		// 색인 버퍼 바이트의 사이즈를 넣어준다.
+	mFrustum->IndexFormat = DXGI_FORMAT_R16_UINT;	// 색인 포맷을 결정한다.
+	mFrustum->IndexBufferByteSize = ibByteSize;		// 색인 버퍼 바이트의 사이즈를 넣어준다.
 
 	// 기하 보조 구조체를 생성한다.
 	SubmeshGeometry submesh;
@@ -379,13 +352,13 @@ void MyD3DBoxApp::BuildBoxGeometry()
 	submesh.StartIndexLocation = 0;
 	submesh.BaseVertexLocation = 0;
 
-	mBoxGeo->DrawArgs["box"] = submesh;
+	mFrustum->DrawArgs["Frustum"] = submesh;
 }
 
 // Pipeline State Object
 // 파이프라인 상태를 기술한다.
 // 이 때 래스터화기 상태는 렌더링 파이프라인에서 프로그래밍은 불가능하고 설정만 가능한 부분 중 하나이다.
-void MyD3DBoxApp::BuildPSO()
+void CFrustum::BuildPSO()
 {
 	// 이 부분은 프로그래밍이 아니라 설정만 가능한 부분이다.
 	// 즉 파이프라인 상에서 프로그래밍이 불가능 부분 중 하나라는 뜻이다.
@@ -402,7 +375,6 @@ void MyD3DBoxApp::BuildPSO()
 		mpsByteCode->GetBufferSize()
 	};
 	psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-	// psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME; // 와이어프레임
 	psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 	psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 	psoDesc.SampleMask = UINT_MAX;
@@ -416,17 +388,17 @@ void MyD3DBoxApp::BuildPSO()
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&mPSO)));
 }
 
-MyD3DBoxApp::MyD3DBoxApp(HINSTANCE hInstance)
+CFrustum::CFrustum(HINSTANCE hInstance)
 	: D3DApp(hInstance)
 {
 	mMainWndCaption = L"My First D3D Application";
 }
 
-MyD3DBoxApp::~MyD3DBoxApp()
+CFrustum::~CFrustum()
 {
 }
 
-bool MyD3DBoxApp::Initialize()
+bool CFrustum::Initialize()
 {
 	if (!D3DApp::Initialize())
 		return false;
@@ -439,7 +411,7 @@ bool MyD3DBoxApp::Initialize()
 	BuildConstantBuffers();
 	BuildRootSignature();
 	BuildShadersAndInputLayout();
-	BuildBoxGeometry();
+	BuildFrustumGeometry();
 	BuildPSO();
 
 	// 초기화 명렁어를 실행한다
